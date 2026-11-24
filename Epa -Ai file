@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EPA AI</title>
+<style>
+  :root{
+    --accent:#6c5ce7;      /* main color (changeable in Settings) */
+    --accent2:#00cec9;     /* second gradient color */
+    --bg:#0b0d14;
+    --panel:#141826;
+    --bot:#1c2133;
+    --line:#262c42;
+    --text:#eef0f7;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);
+       color:var(--text);display:flex;flex-direction:column;height:100vh}
+  header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;
+         background:linear-gradient(135deg,var(--accent),var(--accent2));}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.2);
+        display:flex;align-items:center;justify-content:center;font-weight:800;
+        font-size:15px;letter-spacing:.5px;overflow:hidden}
+  .logo img{width:100%;height:100%;object-fit:cover}
+  .brand h1{margin:0;font-size:19px;line-height:1}
+  .brand small{opacity:.85;font-size:11px}
+  .iconbtn{background:rgba(255,255,255,.2);border:0;color:#fff;border-radius:10px;
+           padding:9px 12px;font-size:15px}
+  #chat{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;
+        scroll-behavior:smooth}
+  .row{display:flex;gap:8px;align-items:flex-end;animation:pop .25s ease}
+  .row.user{flex-direction:row-reverse}
+  .av{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;
+      justify-content:center;font-size:12px;font-weight:700;
+      background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .row.user .av{background:var(--line)}
+  .msg{max-width:80%;padding:10px 14px;border-radius:18px;white-space:pre-wrap;
+       line-height:1.5;word-wrap:break-word;font-size:15.5px}
+  .bot .msg{background:var(--bot);border-bottom-left-radius:4px}
+  .user .msg{background:linear-gradient(135deg,var(--accent),var(--accent2));
+             border-bottom-right-radius:4px}
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .dots span{display:inline-block;width:7px;height:7px;margin:0 2px;border-radius:50%;
+             background:#9aa3c7;animation:b 1s infinite}
+  .dots span:nth-child(2){animation-delay:.15s}
+  .dots span:nth-child(3){animation-delay:.3s}
+  @keyframes b{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+  #chips{display:flex;gap:8px;overflow-x:auto;padding:0 14px 8px}
+  .chip{flex:none;background:var(--panel);border:1px solid var(--line);color:var(--text);
+        border-radius:20px;padding:8px 14px;font-size:13.5px}
+  #bar{display:flex;gap:8px;padding:10px 12px 14px;background:var(--panel);
+       border-top:1px solid var(--line)}
+  #input{flex:1;padding:13px 16px;border-radius:24px;border:1px solid var(--line);
+         background:var(--bg);color:var(--text);font-size:16px;outline:none}
+  #input:focus{border-color:var(--accent)}
+  #send{width:48px;height:48px;border-radius:50%;border:0;color:#fff;font-size:20px;
+        background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  #settings{display:none;padding:14px;background:var(--panel);border-bottom:1px solid var(--line);
+            max-height:70vh;overflow-y:auto}
+  #settings input,#settings select{width:100%;margin:4px 0 12px;padding:11px;border-radius:10px;
+         border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:15px}
+  #settings input[type=color]{height:46px;padding:3px}
+  label{font-size:12.5px;color:#9aa3c7}
+  .btn{border:0;color:#fff;border-radius:10px;padding:10px 14px;font-size:15px;margin:2px 4px 2px 0;
+       background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .btn.grey{background:#394058}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <!-- LOGO: change "EPA" to your own letters, or see the note below the code for an image -->
+    <div class="logo" id="logo">EPA</div>
+    <div><h1>EPA AI</h1><small>Ask me anything</small></div>
+  </div>
+  <button class="iconbtn" onclick="toggleSettings()">⚙️</button>
+</header>
+
+<div id="settings">
+  <label>Provider</label>
+  <select id="provider" onchange="applyPreset()">
+    <option value="groq">Groq (free tier)</option>
+    <option value="openai">OpenAI</option>
+    <option value="openrouter">OpenRouter</option>
+    <option value="anthropic">Anthropic (Claude)</option>
+  </select>
+  <label>API key</label>
+  <input id="key" type="password" placeholder="Paste your API key">
+  <button class="btn grey" onclick="loadModels()">Load models</button><br>
+  <label>Model</label>
+  <input id="model" list="models">
+  <datalist id="models"></datalist>
+  <label>Theme color 1</label>
+  <input id="c1" type="color" value="#6c5ce7">
+  <label>Theme color 2</label>
+  <input id="c2" type="color" value="#00cec9">
+  <button class="btn" onclick="saveSettings()">Save</button>
+  <button class="btn grey" onclick="clearChat()">Clear chat</button>
+</div>
+
+<div id="chat"></div>
+<div id="chips"></div>
+
+<div id="bar">
+  <input id="input" placeholder="Message EPA AI..." onkeydown="if(event.key==='Enter')send()">
+  <button id="send" onclick="send()">➤</button>
+</div>
+
+<script>
+const PRESETS = {
+  groq:{url:"https://api.groq.com/openai/v1/chat/completions",model:"openai/gpt-oss-20b"},
+  openai:{url:"https://api.openai.com/v1/chat/completions",model:"gpt-4o-mini"},
+  openrouter:{url:"https://openrouter.ai/api/v1/chat/completions",model:"openai/gpt-4o-mini"},
+  anthropic:{url:"https://api.anthropic.com/v1/messages",model:"claude-haiku-5-5"}
+};
+const SYSTEM = "You are EPA AI, a helpful, friendly assistant. Answer any question clearly. Reply in the same language the user writes in (including Kinyarwanda).";
+const SUGGESTIONS = ["Explain something simply","Help me study","Write a message","Tell me a fun fact"];
+const $ = id => document.getElementById(id);
+let history = [];
+
+function load(){ try{ return JSON.parse(localStorage.getItem("epa_cfg")||"{}"); }catch(e){ return {}; } }
+function applyTheme(c1,c2){
+  document.documentElement.style.setProperty("--accent",c1||"#6c5ce7");
+  document.documentElement.style.setProperty("--accent2",c2||"#00cec9");
+}
+function saveSettings(){
+  const cfg = {provider:$("provider").value, key:$("key").value.trim(),
+               model:$("model").value.trim(), c1:$("c1").value, c2:$("c2").value};
+  try{ localStorage.setItem("epa_cfg", JSON.stringify(cfg)); }catch(e){}
+  applyTheme(cfg.c1,cfg.c2);
+  toggleSettings();
+}
+function applyPreset(){ $("model").value = PRESETS[$("provider").value].model; $("models").innerHTML=""; }
+function toggleSettings(){ const s=$("settings"); s.style.display = s.style.display==="block"?"none":"block"; }
+function clearChat(){ history=[]; $("chat").innerHTML=""; welcome(); toggleSettings(); }
+
+function add(role,text){
+  const row = document.createElement("div"); row.className = "row "+role;
+  const av = document.createElement("div"); av.className="av"; av.textContent = role==="bot"?"AI":"You";
+  const m = document.createElement("div"); m.className="msg"; m.textContent=text;
+  row.append(av,m); $("chat").appendChild(row);
+  $("chat").scrollTop = $("chat").scrollHeight;
+  return m;
+}
+function welcome(){
+  add("bot","Hi! I'm EPA AI 👋 Ask me anything.");
+  $("chips").style.display="flex";
+}
+function buildChips(){
+  $("chips").innerHTML = SUGGESTIONS.map(s=>'<button class="chip">'+s+'</button>').join("");
+  document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{ $("input").value=b.textContent; send(); });
+}
+
+async function loadModels(){
+  const prov=$("provider").value, key=$("key").value.trim();
+  if(!key){ alert("Enter your API key first"); return; }
+  const url = PRESETS[prov].url.replace("/chat/completions","/models").replace("/messages","/models");
+  const headers = prov==="anthropic"
+    ? {"x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}
+    : {"Authorization":"Bearer "+key};
+  try{
+    const r = await fetch(url,{headers}); const j = await r.json();
+    if(!r.ok) throw new Error(j.error?.message || r.status);
+    $("models").innerHTML = j.data.map(m=>'<option value="'+m.id+'">').join("");
+    $("model").value="";
+    alert("Loaded "+j.data.length+" models. Tap the Model box and pick one.");
+  }catch(e){ alert("Error: "+e.message); }
+}
+
+async function send(){
+  const text = $("input").value.trim();
+  if(!text) return;
+  const cfg = load();
+  if(!cfg.key){ toggleSettings(); add("bot","Please add your API key in Settings first."); return; }
+  $("input").value=""; $("chips").style.display="none";
+  add("user",text);
+  history.push({role:"user",content:text});
+  const bubble = add("bot","");
+  bubble.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
+  const p = PRESETS[cfg.provider] || PRESETS.groq;
+  const model = cfg.model || p.model;
+  try{
+    let res, reply;
+    if(cfg.provider==="anthropic"){
+      res = await fetch(p.url,{method:"POST",headers:{
+        "content-type":"application/json","x-api-key":cfg.key,"anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model,max_tokens:1024,system:SYSTEM,messages:history})});
+      const j = await res.json();
+      if(!res.ok) throw new Error(j.error?.message || res.status);
+      reply = j.content[0].text;
+    }else{
+      res = await fetch(p.url,{method:"POST",headers:{
+        "content-type":"application/json","Authorization":"Bearer "+cfg.key},
+        body:JSON.stringify({model,messages:[{role:"system",content:SYSTEM},...history]})});
+      const j = await res.json();
+      if(!res.ok) throw new Error(j.error?.message || res.status);
+      reply = j.choices[0].message.content;
+    }
+    bubble.textContent = reply;
+    history.push({role:"assistant",content:reply});
+  }catch(e){
+    bubble.textContent = "Error: "+e.message;
+    history.pop();
+  }
+  $("chat").scrollTop = $("chat").scrollHeight;
+}
+
+// init
+const c = load();
+$("provider").value = c.provider || "groq";
+$("key").value = c.key || "";
+$("model").value = c.model || PRESETS[$("provider").value].model;
+$("c1").value = c.c1 || "#6c5ce7";
+$("c2").value = c.c2 || "#00cec9";
+applyTheme(c.c1,c.c2);
+buildChips();
+welcome();
+</script>
+</body>
+</html>
